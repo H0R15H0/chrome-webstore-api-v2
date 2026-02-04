@@ -188,6 +188,64 @@ if err != nil {
 }
 ```
 
+## CLI ツール
+
+コマンドラインから Chrome Web Store API を操作できる `cws` ツールも提供しています。
+
+### CLI インストール
+
+```bash
+go install github.com/H0R15H0/chrome-webstore-api-v2/cmd/cws@latest
+```
+
+### 環境変数の設定
+
+```bash
+export CHROME_WEBSTORE_CLIENT_ID="your-client-id"
+export CHROME_WEBSTORE_CLIENT_SECRET="your-client-secret"
+export CHROME_WEBSTORE_REFRESH_TOKEN="your-refresh-token"
+export CHROME_WEBSTORE_PUBLISHER_ID="your-publisher-id"
+export CHROME_WEBSTORE_ITEM_ID="your-item-id"
+```
+
+### CLI コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `cws fetch-status` | アイテムのステータスを取得 |
+| `cws upload <file.zip>` | 拡張機能をアップロード |
+| `cws publish` | アイテムを公開 |
+| `cws cancel-submission` | 保留中の申請をキャンセル |
+| `cws set-published-deploy-percentage <percentage>` | デプロイ率を設定 |
+
+### CLI 使用例
+
+```bash
+# ステータスを取得
+cws fetch-status
+
+# JSON 形式で出力
+cws fetch-status --json
+
+# 拡張機能をアップロード
+cws upload extension.zip
+
+# テスターのみに公開
+cws publish --target testers
+
+# 全ユーザーに公開
+cws publish
+
+# 申請をキャンセル
+cws cancel-submission
+
+# デプロイ率を 50% に設定
+cws set-published-deploy-percentage 50
+
+# フラグで ID を指定
+cws fetch-status --publisher-id my-publisher --item-id my-item
+```
+
 ## ライセンス
 
 MIT License
