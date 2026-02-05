@@ -12,26 +12,54 @@ go get github.com/H0R15H0/chrome-webstore-api-v2
 
 Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが必要です。
 
-### 1. Google Cloud Console でプロジェクトを作成
+### 1. Google Cloud Console でプロジェクトを設定
 
 1. [Google Cloud Console](https://console.cloud.google.com/) にアクセス
 2. 新しいプロジェクトを作成するか、既存のプロジェクトを選択
-3. Chrome Web Store API を有効化
+3. 「APIs & Services」→「Library」から **Chrome Web Store API** を有効化
 
-### 2. OAuth 2.0 クレデンシャルを取得
+### 2. OAuth 同意画面を設定
 
-1. APIs & Services > Credentials に移動
-2. Create Credentials > OAuth client ID を選択
-3. Application type: Desktop app を選択
-4. Client ID と Client Secret をメモ
+1. 「APIs & Services」→「OAuth consent screen」に移動
+2. User Type: **External** を選択して「Create」
+3. 必要な情報を入力（アプリ名、サポートメール等）
+4. スコープは設定せずに進む
+5. テストユーザーに Chrome Web Store のアイテムを所有する Google アカウントを追加
 
-### 3. リフレッシュトークンを取得
+### 3. OAuth 2.0 クレデンシャルを作成
 
-OAuth 2.0 Playground や独自の認証フローを使用してリフレッシュトークンを取得します。
+1. 「APIs & Services」→「Credentials」に移動
+2. 「Create Credentials」→「OAuth client ID」を選択
+3. **Application type: Web application** を選択
+4. 「Authorized redirect URIs」に以下を追加:
+   ```
+   https://developers.google.com/oauthplayground
+   ```
+5. 「Create」をクリック
+6. **Client ID** と **Client Secret** をメモ
 
-必要なスコープ:
-- `https://www.googleapis.com/auth/chromewebstore` - 読み書きアクセス
-- `https://www.googleapis.com/auth/chromewebstore.readonly` - 読み取り専用
+### 4. リフレッシュトークンを取得
+
+[OAuth 2.0 Playground](https://developers.google.com/oauthplayground/) を使用してリフレッシュトークンを取得します。
+
+1. 右上の **歯車アイコン** をクリック
+2. 「**Use your own OAuth credentials**」にチェック
+3. 手順 3 で取得した **Client ID** と **Client Secret** を入力
+4. 左側「Step 1」のスコープ入力欄に以下を入力:
+   ```
+   https://www.googleapis.com/auth/chromewebstore
+   ```
+5. 「**Authorize APIs**」をクリック
+6. Chrome Web Store のアイテムを所有している Google アカウントで認証
+7. 「Step 2」で「**Exchange authorization code for tokens**」をクリック
+8. 表示された **Refresh token** をコピー
+
+### 5. Publisher ID と Item ID を確認
+
+- **Publisher ID**: [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) の URL に含まれる ID
+  - 例: `https://chrome.google.com/webstore/devconsole/12345678-abcd-...` の `12345678-abcd-...` 部分
+- **Item ID**: 拡張機能の ID（32文字の英小文字）
+  - Developer Dashboard で拡張機能を選択した際の URL や、公開 URL に含まれる
 
 ## 使用例
 
@@ -70,8 +98,13 @@ if err != nil {
     log.Fatal(err)
 }
 
-fmt.Printf("State: %s\n", status.State)
-fmt.Printf("Version: %s\n", status.Version)
+fmt.Printf("Item ID: %s\n", status.ItemID)
+if status.PublishedItemRevisionStatus != nil {
+    fmt.Printf("State: %s\n", status.PublishedItemRevisionStatus.State)
+    for _, ch := range status.PublishedItemRevisionStatus.DistributionChannels {
+        fmt.Printf("Version: %s (Deploy: %d%%)\n", ch.CrxVersion, ch.DeployPercentage)
+    }
+}
 ```
 
 ### 拡張機能のアップロード
@@ -91,22 +124,28 @@ if err != nil {
     log.Fatal(err)
 }
 
-fmt.Printf("Upload status: %s\n", resp.StatusCode)
+fmt.Printf("Upload state: %s\n", resp.UploadState)
+fmt.Printf("Version: %s\n", resp.CrxVersion)
 ```
 
 ### 公開
 
 ```go
-// 全ユーザーに公開
-resp, err := client.Publishers.Items.Publish(itemName).Context(ctx).Do()
+// 即時公開
+resp, err := client.Publishers.Items.Publish(itemName).
+    Context(ctx).
+    PublishType(chromewebstore.PublishTypeImmediate).
+    Do()
 if err != nil {
     log.Fatal(err)
 }
+fmt.Printf("State: %s\n", resp.State)
 
-// 信頼できるテスターのみに公開
+// 段階的ロールアウト
 resp, err := client.Publishers.Items.Publish(itemName).
     Context(ctx).
-    PublishTarget(chromewebstore.PublishTargetTrustedTesters).
+    PublishType(chromewebstore.PublishTypeStaged).
+    DeployPercentage(10).
     Do()
 ```
 
@@ -155,20 +194,28 @@ resp, err := client.Publishers.Items.CancelSubmission(itemName).Context(ctx).Do(
 
 | 値 | 説明 |
 |---|------|
-| `ItemStateDraft` | 下書き |
 | `ItemStatePendingReview` | レビュー待ち |
+| `ItemStateStaged` | ステージング |
 | `ItemStatePublished` | 公開済み |
+| `ItemStatePublishedToTesters` | テスターに公開済み |
 | `ItemStateRejected` | 却下 |
-| `ItemStateTakenDown` | 削除済み |
-| `ItemStateInReview` | レビュー中 |
-| `ItemStatePendingPublish` | 公開待ち |
+| `ItemStateCancelled` | キャンセル済み |
 
-#### PublishTarget
+#### UploadState
 
 | 値 | 説明 |
 |---|------|
-| `PublishTargetDefault` | 全ユーザー |
-| `PublishTargetTrustedTesters` | 信頼できるテスターのみ |
+| `UploadStateSucceeded` | 成功 |
+| `UploadStateInProgress` | 処理中 |
+| `UploadStateFailed` | 失敗 |
+| `UploadStateNotFound` | 見つからない |
+
+#### PublishType
+
+| 値 | 説明 |
+|---|------|
+| `PublishTypeImmediate` | 即時公開 |
+| `PublishTypeStaged` | 段階的ロールアウト |
 
 ## エラーハンドリング
 
@@ -227,14 +274,17 @@ cws fetch-status
 # JSON 形式で出力
 cws fetch-status --json
 
+# 特定のプロジェクションを指定
+cws fetch-status --projection DRAFT
+
 # 拡張機能をアップロード
 cws upload extension.zip
 
-# テスターのみに公開
-cws publish --target testers
+# 即時公開
+cws publish --type immediate
 
-# 全ユーザーに公開
-cws publish
+# 段階的ロールアウト
+cws publish --type staged --deploy-percentage 10
 
 # 申請をキャンセル
 cws cancel-submission
