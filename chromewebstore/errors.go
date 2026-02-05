@@ -1,9 +1,21 @@
 package chromewebstore
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
+
+// googleAPIErrorResponse represents the error response structure from Google APIs.
+type googleAPIErrorResponse struct {
+	Error *googleAPIErrorDetail `json:"error"`
+}
+
+// googleAPIErrorDetail represents the error detail structure.
+type googleAPIErrorDetail struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
 
 // APIError represents an error returned by the Chrome Web Store API.
 type APIError struct {
@@ -47,9 +59,17 @@ func (e *APIError) IsRateLimited() bool {
 
 // newAPIError creates a new APIError from an HTTP response.
 func newAPIError(resp *http.Response, body []byte) *APIError {
-	return &APIError{
+	apiErr := &APIError{
 		StatusCode: resp.StatusCode,
 		Status:     resp.Status,
 		Body:       string(body),
 	}
+
+	// Try to parse the error response as Google API error format
+	var errResp googleAPIErrorResponse
+	if err := json.Unmarshal(body, &errResp); err == nil && errResp.Error != nil {
+		apiErr.Message = errResp.Error.Message
+	}
+
+	return apiErr
 }
