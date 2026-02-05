@@ -8,17 +8,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var publishTarget string
+var (
+	publishType      string
+	deployPercentage int
+)
 
 func init() {
-	publishCmd.Flags().StringVar(&publishTarget, "target", "", "Publish target: 'testers' for trusted testers only")
+	publishCmd.Flags().StringVar(&publishType, "type", "", "Publish type: 'immediate' or 'staged'")
+	publishCmd.Flags().IntVar(&deployPercentage, "deploy-percentage", 0, "Deploy percentage for staged rollout (0-100)")
 	rootCmd.AddCommand(publishCmd)
 }
 
 var publishCmd = &cobra.Command{
 	Use:   "publish",
 	Short: "Publish an item",
-	Long:  `Publish a Chrome Web Store item to the specified audience.`,
+	Long:  `Publish a Chrome Web Store item.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := createClient()
 		if err != nil {
@@ -32,8 +36,14 @@ var publishCmd = &cobra.Command{
 
 		call := client.Publishers.Items.Publish(itemName)
 
-		if publishTarget == "testers" {
-			call.PublishTarget(chromewebstore.PublishTargetTrustedTesters)
+		if publishType == "immediate" {
+			call.PublishType(chromewebstore.PublishTypeImmediate)
+		} else if publishType == "staged" {
+			call.PublishType(chromewebstore.PublishTypeStaged)
+		}
+
+		if deployPercentage > 0 {
+			call.DeployPercentage(deployPercentage)
 		}
 
 		result, err := call.Do()
@@ -48,13 +58,9 @@ var publishCmd = &cobra.Command{
 			}
 			fmt.Println(string(output))
 		} else {
-			fmt.Printf("Status: %s\n", result.StatusCode)
-			if len(result.StatusDetail) > 0 {
-				fmt.Println("Details:")
-				for _, detail := range result.StatusDetail {
-					fmt.Printf("  - %s\n", detail)
-				}
-			}
+			fmt.Printf("Name:    %s\n", result.Name)
+			fmt.Printf("Item ID: %s\n", result.ItemID)
+			fmt.Printf("State:   %s\n", result.State)
 		}
 
 		return nil

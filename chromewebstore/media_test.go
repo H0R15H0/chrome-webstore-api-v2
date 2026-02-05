@@ -11,8 +11,10 @@ import (
 
 func TestUpload(t *testing.T) {
 	expectedResponse := UploadResponse{
-		Name:       "publishers/test-publisher/items/test-item",
-		StatusCode: StatusCodeOK,
+		Name:        "publishers/test-publisher/items/test-item",
+		ItemID:      "test-item",
+		UploadState: UploadStateSucceeded,
+		CrxVersion:  "1.0.0",
 	}
 
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
@@ -58,8 +60,8 @@ func TestUpload(t *testing.T) {
 		t.Errorf("expected name %s, got %s", expectedResponse.Name, resp.Name)
 	}
 
-	if resp.StatusCode != expectedResponse.StatusCode {
-		t.Errorf("expected status code %s, got %s", expectedResponse.StatusCode, resp.StatusCode)
+	if resp.UploadState != expectedResponse.UploadState {
+		t.Errorf("expected upload state %s, got %s", expectedResponse.UploadState, resp.UploadState)
 	}
 }
 

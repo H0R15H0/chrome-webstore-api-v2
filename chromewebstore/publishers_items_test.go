@@ -10,9 +10,14 @@ import (
 
 func TestFetchStatus(t *testing.T) {
 	expectedResponse := ItemStatus{
-		Name:    "publishers/test-publisher/items/test-item",
-		State:   ItemStatePublished,
-		Version: "1.0.0",
+		Name:   "publishers/test-publisher/items/test-item",
+		ItemID: "test-item",
+		PublishedItemRevisionStatus: &ItemRevisionStatus{
+			State: ItemStatePublished,
+			DistributionChannels: []DistributionChannel{
+				{DeployPercentage: 100, CrxVersion: "1.0.0"},
+			},
+		},
 	}
 
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
@@ -43,12 +48,20 @@ func TestFetchStatus(t *testing.T) {
 		t.Errorf("expected name %s, got %s", expectedResponse.Name, status.Name)
 	}
 
-	if status.State != expectedResponse.State {
-		t.Errorf("expected state %s, got %s", expectedResponse.State, status.State)
+	if status.PublishedItemRevisionStatus == nil {
+		t.Fatal("expected PublishedItemRevisionStatus to be non-nil")
 	}
 
-	if status.Version != expectedResponse.Version {
-		t.Errorf("expected version %s, got %s", expectedResponse.Version, status.Version)
+	if status.PublishedItemRevisionStatus.State != expectedResponse.PublishedItemRevisionStatus.State {
+		t.Errorf("expected state %s, got %s", expectedResponse.PublishedItemRevisionStatus.State, status.PublishedItemRevisionStatus.State)
+	}
+
+	if len(status.PublishedItemRevisionStatus.DistributionChannels) == 0 {
+		t.Fatal("expected at least one distribution channel")
+	}
+
+	if status.PublishedItemRevisionStatus.DistributionChannels[0].CrxVersion != "1.0.0" {
+		t.Errorf("expected version 1.0.0, got %s", status.PublishedItemRevisionStatus.DistributionChannels[0].CrxVersion)
 	}
 }
 
@@ -77,7 +90,9 @@ func TestFetchStatusWithProjection(t *testing.T) {
 
 func TestPublish(t *testing.T) {
 	expectedResponse := PublishResponse{
-		StatusCode: StatusCodeOK,
+		Name:   "publishers/test-publisher/items/test-item",
+		ItemID: "test-item",
+		State:  ItemStatePendingReview,
 	}
 
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
@@ -104,16 +119,17 @@ func TestPublish(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if resp.StatusCode != expectedResponse.StatusCode {
-		t.Errorf("expected status code %s, got %s", expectedResponse.StatusCode, resp.StatusCode)
+	if resp.State != expectedResponse.State {
+		t.Errorf("expected state %s, got %s", expectedResponse.State, resp.State)
 	}
 }
 
-func TestPublishWithTarget(t *testing.T) {
+func TestPublishWithType(t *testing.T) {
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
-		target := r.URL.Query().Get("publishTarget")
-		if target != string(PublishTargetTrustedTesters) {
-			t.Errorf("expected publishTarget %s, got %s", PublishTargetTrustedTesters, target)
+		var req PublishRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		if req.PublishType != PublishTypeImmediate {
+			t.Errorf("expected publishType %s, got %s", PublishTypeImmediate, req.PublishType)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -125,7 +141,7 @@ func TestPublishWithTarget(t *testing.T) {
 	client.SetBaseURL(server.URL)
 
 	itemName := NewItemName("test-publisher", "test-item")
-	_, err := client.Publishers.Items.Publish(itemName).PublishTarget(PublishTargetTrustedTesters).Do()
+	_, err := client.Publishers.Items.Publish(itemName).PublishType(PublishTypeImmediate).Do()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -133,10 +149,6 @@ func TestPublishWithTarget(t *testing.T) {
 }
 
 func TestCancelSubmission(t *testing.T) {
-	expectedResponse := CancelSubmissionResponse{
-		StatusCode: StatusCodeOK,
-	}
-
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST method, got %s", r.Method)
@@ -147,7 +159,7 @@ func TestCancelSubmission(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(expectedResponse)
+		json.NewEncoder(w).Encode(CancelSubmissionResponse{})
 	})
 	defer server.Close()
 
@@ -155,22 +167,14 @@ func TestCancelSubmission(t *testing.T) {
 	client.SetBaseURL(server.URL)
 
 	itemName := NewItemName("test-publisher", "test-item")
-	resp, err := client.Publishers.Items.CancelSubmission(itemName).Context(context.Background()).Do()
+	_, err := client.Publishers.Items.CancelSubmission(itemName).Context(context.Background()).Do()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	if resp.StatusCode != expectedResponse.StatusCode {
-		t.Errorf("expected status code %s, got %s", expectedResponse.StatusCode, resp.StatusCode)
-	}
 }
 
 func TestSetPublishedDeployPercentage(t *testing.T) {
-	expectedResponse := SetPublishedDeployPercentageResponse{
-		StatusCode: StatusCodeOK,
-	}
-
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("expected POST method, got %s", r.Method)
@@ -186,7 +190,7 @@ func TestSetPublishedDeployPercentage(t *testing.T) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(expectedResponse)
+		json.NewEncoder(w).Encode(SetPublishedDeployPercentageResponse{})
 	})
 	defer server.Close()
 
@@ -194,14 +198,10 @@ func TestSetPublishedDeployPercentage(t *testing.T) {
 	client.SetBaseURL(server.URL)
 
 	itemName := NewItemName("test-publisher", "test-item")
-	resp, err := client.Publishers.Items.SetPublishedDeployPercentage(itemName).DeployPercentage(50).Do()
+	_, err := client.Publishers.Items.SetPublishedDeployPercentage(itemName).DeployPercentage(50).Do()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if resp.StatusCode != expectedResponse.StatusCode {
-		t.Errorf("expected status code %s, got %s", expectedResponse.StatusCode, resp.StatusCode)
 	}
 }
 

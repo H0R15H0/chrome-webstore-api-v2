@@ -9,20 +9,21 @@ import (
 
 // PublishCall represents a call to publish an item.
 type PublishCall struct {
-	client        *Client
-	name          ItemName
-	ctx           context.Context
-	params        url.Values
-	publishTarget PublishTarget
+	client  *Client
+	name    ItemName
+	ctx     context.Context
+	params  url.Values
+	request *PublishRequest
 }
 
 // newPublishCall creates a new PublishCall.
 func newPublishCall(c *Client, name ItemName) *PublishCall {
 	return &PublishCall{
-		client: c,
-		name:   name,
-		ctx:    context.Background(),
-		params: make(url.Values),
+		client:  c,
+		name:    name,
+		ctx:     context.Background(),
+		params:  make(url.Values),
+		request: &PublishRequest{},
 	}
 }
 
@@ -32,24 +33,30 @@ func (c *PublishCall) Context(ctx context.Context) *PublishCall {
 	return c
 }
 
-// PublishTarget sets the publish target.
-// Use PublishTargetTrustedTesters to publish to trusted testers only.
-func (c *PublishCall) PublishTarget(target PublishTarget) *PublishCall {
-	c.publishTarget = target
+// PublishType sets the publish type (IMMEDIATE or STAGED).
+func (c *PublishCall) PublishType(publishType PublishType) *PublishCall {
+	c.request.PublishType = publishType
+	return c
+}
+
+// SkipReview sets whether to attempt bypassing review.
+func (c *PublishCall) SkipReview(skip bool) *PublishCall {
+	c.request.SkipReview = skip
+	return c
+}
+
+// DeployPercentage sets the deploy percentage for staged rollout.
+func (c *PublishCall) DeployPercentage(percentage int) *PublishCall {
+	c.request.DeployInfos = []DeployInfo{{DeployPercentage: percentage}}
 	return c
 }
 
 // Do executes the publish request.
 func (c *PublishCall) Do() (*PublishResponse, error) {
 	path := fmt.Sprintf("/v2/%s:publish", c.name)
-
-	if c.publishTarget != "" {
-		c.params.Set("publishTarget", string(c.publishTarget))
-	}
-
 	urlStr := buildURL(c.client.baseURL, path, c.params)
 
-	resp, err := c.client.doRequest(c.ctx, http.MethodPost, urlStr, nil)
+	resp, err := c.client.doRequest(c.ctx, http.MethodPost, urlStr, c.request)
 	if err != nil {
 		return nil, err
 	}

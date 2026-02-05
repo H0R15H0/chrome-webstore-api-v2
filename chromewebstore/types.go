@@ -17,121 +17,127 @@ func (n ItemName) String() string {
 	return string(n)
 }
 
-// PublishTarget specifies the target for publishing.
-type PublishTarget string
+// PublishType specifies the type of publishing.
+type PublishType string
 
 const (
-	// PublishTargetDefault publishes to the default audience.
-	PublishTargetDefault PublishTarget = "PUBLISH_TARGET_UNSPECIFIED"
-	// PublishTargetTrustedTesters publishes to trusted testers only.
-	PublishTargetTrustedTesters PublishTarget = "TRUSTED_TESTERS"
+	// PublishTypeUnspecified is the default publish type.
+	PublishTypeUnspecified PublishType = "PUBLISH_TYPE_UNSPECIFIED"
+	// PublishTypeImmediate publishes immediately.
+	PublishTypeImmediate PublishType = "IMMEDIATE"
+	// PublishTypeStaged stages the publication.
+	PublishTypeStaged PublishType = "STAGED"
 )
 
-// ItemState represents the state of a Chrome Web Store item.
+// ItemState represents the state of a Chrome Web Store item revision.
 type ItemState string
 
 const (
-	ItemStateUnspecified    ItemState = "STATE_UNSPECIFIED"
-	ItemStateDraft          ItemState = "DRAFT"
-	ItemStatePendingReview  ItemState = "PENDING_REVIEW"
-	ItemStatePublished      ItemState = "PUBLISHED"
-	ItemStateRejected       ItemState = "REJECTED"
-	ItemStateTakenDown      ItemState = "TAKEN_DOWN"
-	ItemStateNotPublished   ItemState = "NOT_PUBLISHED"
-	ItemStateSuspended      ItemState = "SUSPENDED"
-	ItemStateInReview       ItemState = "IN_REVIEW"
-	ItemStatePendingPublish ItemState = "PENDING_PUBLISH"
+	ItemStateUnspecified       ItemState = "STATE_UNSPECIFIED"
+	ItemStatePendingReview     ItemState = "PENDING_REVIEW"
+	ItemStateStaged            ItemState = "STAGED"
+	ItemStatePublished         ItemState = "PUBLISHED"
+	ItemStatePublishedToTesters ItemState = "PUBLISHED_TO_TESTERS"
+	ItemStateRejected          ItemState = "REJECTED"
+	ItemStateCancelled         ItemState = "CANCELLED"
 )
 
-// StatusCode represents the status code in API responses.
-type StatusCode string
+// UploadState represents the state of an upload operation.
+type UploadState string
 
 const (
-	StatusCodeUnspecified       StatusCode = "STATUS_CODE_UNSPECIFIED"
-	StatusCodeOK                StatusCode = "OK"
-	StatusCodeInvalidItem       StatusCode = "INVALID_ITEM"
-	StatusCodeUnauthorized      StatusCode = "UNAUTHORIZED"
-	StatusCodeNotFound          StatusCode = "NOT_FOUND"
-	StatusCodeConflict          StatusCode = "CONFLICT"
-	StatusCodeInternalError     StatusCode = "INTERNAL_ERROR"
-	StatusCodeInvalidDeveloper  StatusCode = "INVALID_DEVELOPER"
-	StatusCodeRateLimitExceeded StatusCode = "RATE_LIMIT_EXCEEDED"
+	UploadStateUnspecified UploadState = "UPLOAD_STATE_UNSPECIFIED"
+	UploadStateSucceeded   UploadState = "SUCCEEDED"
+	UploadStateInProgress  UploadState = "IN_PROGRESS"
+	UploadStateFailed      UploadState = "FAILED"
+	UploadStateNotFound    UploadState = "NOT_FOUND"
 )
 
-// ItemStatus represents the response from fetchStatus API.
+// ItemStatus represents the response from fetchStatus API (FetchItemStatusResponse).
 type ItemStatus struct {
 	// Name is the resource name of the item.
 	Name string `json:"name,omitempty"`
-	// State is the current state of the item.
+	// ItemID is the ID of the item.
+	ItemID string `json:"itemId,omitempty"`
+	// PublicKey is the public key of the item.
+	PublicKey string `json:"publicKey,omitempty"`
+	// Warned indicates if there is a policy violation warning.
+	Warned bool `json:"warned,omitempty"`
+	// TakenDown indicates if the item was taken down due to policy violation.
+	TakenDown bool `json:"takenDown,omitempty"`
+	// LastAsyncUploadState is the state of the most recent async upload.
+	LastAsyncUploadState UploadState `json:"lastAsyncUploadState,omitempty"`
+	// SubmittedItemRevisionStatus contains the status of a pending submission.
+	SubmittedItemRevisionStatus *ItemRevisionStatus `json:"submittedItemRevisionStatus,omitempty"`
+	// PublishedItemRevisionStatus contains the status of the published revision.
+	PublishedItemRevisionStatus *ItemRevisionStatus `json:"publishedItemRevisionStatus,omitempty"`
+}
+
+// ItemRevisionStatus represents the status of an item revision.
+type ItemRevisionStatus struct {
+	// State is the current state of the item revision.
 	State ItemState `json:"state,omitempty"`
-	// Version is the current version of the item.
-	Version string `json:"version,omitempty"`
-	// DetailedStatus provides detailed status information.
-	DetailedStatus []StatusDetail `json:"detailedStatus,omitempty"`
-	// DownloadURL is the URL to download the item (if available).
-	DownloadURL string `json:"downloadUrl,omitempty"`
+	// DistributionChannels contains distribution information.
+	DistributionChannels []DistributionChannel `json:"distributionChannels,omitempty"`
 }
 
-// StatusDetail provides detailed status information.
-type StatusDetail struct {
-	// StatusCode is the status code.
-	StatusCode StatusCode `json:"statusCode,omitempty"`
-	// Description provides a human-readable description.
-	Description string `json:"description,omitempty"`
+// DistributionChannel represents a distribution channel for an item.
+type DistributionChannel struct {
+	// DeployPercentage is the percentage of users receiving this version (0-100).
+	DeployPercentage int `json:"deployPercentage,omitempty"`
+	// CrxVersion is the version string of the CRX from the manifest.
+	CrxVersion string `json:"crxVersion,omitempty"`
 }
 
-// PublishRequest represents a request to publish an item.
+// PublishRequest represents a request to publish an item (PublishItemRequest).
 type PublishRequest struct {
-	// PublishTarget specifies the target audience.
-	PublishTarget PublishTarget `json:"publishTarget,omitempty"`
+	// PublishType controls immediate vs staged publishing.
+	PublishType PublishType `json:"publishType,omitempty"`
+	// SkipReview indicates whether to attempt bypassing review.
+	SkipReview bool `json:"skipReview,omitempty"`
+	// DeployInfos contains optional deployment parameters.
+	DeployInfos []DeployInfo `json:"deployInfos,omitempty"`
 }
 
-// PublishResponse represents the response from publish API.
+// DeployInfo represents deployment configuration for a release channel.
+type DeployInfo struct {
+	// DeployPercentage is the percentage for rollout (0-100).
+	DeployPercentage int `json:"deployPercentage,omitempty"`
+}
+
+// PublishResponse represents the response from publish API (PublishItemResponse).
 type PublishResponse struct {
-	// StatusCode is the status of the publish operation.
-	StatusCode StatusCode `json:"statusCode,omitempty"`
-	// StatusDetail provides additional status details.
-	StatusDetail []string `json:"statusDetail,omitempty"`
-}
-
-// UploadResponse represents the response from upload API.
-type UploadResponse struct {
-	// Name is the resource name of the uploaded item.
+	// Name is the resource name of the item.
 	Name string `json:"name,omitempty"`
-	// StatusCode is the status of the upload operation.
-	StatusCode StatusCode `json:"statusCode,omitempty"`
-	// StatusDetail provides additional status details.
-	StatusDetail []string `json:"statusDetail,omitempty"`
-	// ItemError contains error details if the upload failed.
-	ItemError []ItemError `json:"itemError,omitempty"`
+	// ItemID is the ID of the item.
+	ItemID string `json:"itemId,omitempty"`
+	// State is the current submission status.
+	State ItemState `json:"state,omitempty"`
 }
 
-// ItemError represents an error related to an item.
-type ItemError struct {
-	// ErrorCode is the error code.
-	ErrorCode string `json:"errorCode,omitempty"`
-	// ErrorDetail provides a human-readable error description.
-	ErrorDetail string `json:"errorDetail,omitempty"`
+// UploadResponse represents the response from upload API (UploadItemPackageResponse).
+type UploadResponse struct {
+	// Name is the resource name of the target item.
+	Name string `json:"name,omitempty"`
+	// ItemID is the ID of the item that received the package.
+	ItemID string `json:"itemId,omitempty"`
+	// UploadState is the status of the upload.
+	UploadState UploadState `json:"uploadState,omitempty"`
+	// CrxVersion is the extension version from the manifest (unset if upload in progress).
+	CrxVersion string `json:"crxVersion,omitempty"`
 }
 
 // SetPublishedDeployPercentageRequest represents a request to set deploy percentage.
 type SetPublishedDeployPercentageRequest struct {
 	// DeployPercentage is the percentage of users to deploy to (0-100).
+	// Must exceed the current value.
 	DeployPercentage int `json:"deployPercentage"`
 }
 
 // SetPublishedDeployPercentageResponse represents the response from setPublishedDeployPercentage API.
-type SetPublishedDeployPercentageResponse struct {
-	// StatusCode is the status of the operation.
-	StatusCode StatusCode `json:"statusCode,omitempty"`
-	// StatusDetail provides additional status details.
-	StatusDetail []string `json:"statusDetail,omitempty"`
-}
+// This is an empty response according to API spec.
+type SetPublishedDeployPercentageResponse struct{}
 
 // CancelSubmissionResponse represents the response from cancelSubmission API.
-type CancelSubmissionResponse struct {
-	// StatusCode is the status of the operation.
-	StatusCode StatusCode `json:"statusCode,omitempty"`
-	// StatusDetail provides additional status details.
-	StatusDetail []string `json:"statusDetail,omitempty"`
-}
+// This is an empty response according to API spec.
+type CancelSubmissionResponse struct{}

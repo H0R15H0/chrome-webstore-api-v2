@@ -51,13 +51,7 @@ var setPublishedDeployPercentageCmd = &cobra.Command{
 			}
 			fmt.Println(string(output))
 		} else {
-			fmt.Printf("Status: %s\n", result.StatusCode)
-			if len(result.StatusDetail) > 0 {
-				fmt.Println("Details:")
-				for _, detail := range result.StatusDetail {
-					fmt.Printf("  - %s\n", detail)
-				}
-			}
+			fmt.Printf("Deploy percentage set to %d%%\n", percentage)
 		}
 
 		return nil

@@ -7,8 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var projection string
+
 func init() {
 	fetchStatusCmd.Flags().BoolVar(&jsonOutput, "json", false, "Output in JSON format")
+	fetchStatusCmd.Flags().StringVar(&projection, "projection", "", "Projection type: DRAFT or PUBLISHED")
 	rootCmd.AddCommand(fetchStatusCmd)
 }
 
@@ -27,7 +30,11 @@ var fetchStatusCmd = &cobra.Command{
 			return err
 		}
 
-		status, err := client.Publishers.Items.FetchStatus(itemName).Do()
+		call := client.Publishers.Items.FetchStatus(itemName)
+		if projection != "" {
+			call = call.Projection(projection)
+		}
+		status, err := call.Do()
 		if err != nil {
 			return fmt.Errorf("failed to fetch status: %w", err)
 		}
@@ -40,15 +47,21 @@ var fetchStatusCmd = &cobra.Command{
 			fmt.Println(string(output))
 		} else {
 			fmt.Printf("Name:    %s\n", status.Name)
-			fmt.Printf("State:   %s\n", status.State)
-			fmt.Printf("Version: %s\n", status.Version)
-			if status.DownloadURL != "" {
-				fmt.Printf("Download URL: %s\n", status.DownloadURL)
+			fmt.Printf("Item ID: %s\n", status.ItemID)
+
+			if status.SubmittedItemRevisionStatus != nil {
+				fmt.Println("Submitted:")
+				fmt.Printf("  State: %s\n", status.SubmittedItemRevisionStatus.State)
+				for _, ch := range status.SubmittedItemRevisionStatus.DistributionChannels {
+					fmt.Printf("  Version: %s (Deploy: %d%%)\n", ch.CrxVersion, ch.DeployPercentage)
+				}
 			}
-			if len(status.DetailedStatus) > 0 {
-				fmt.Println("Detailed Status:")
-				for _, detail := range status.DetailedStatus {
-					fmt.Printf("  - %s: %s\n", detail.StatusCode, detail.Description)
+
+			if status.PublishedItemRevisionStatus != nil {
+				fmt.Println("Published:")
+				fmt.Printf("  State: %s\n", status.PublishedItemRevisionStatus.State)
+				for _, ch := range status.PublishedItemRevisionStatus.DistributionChannels {
+					fmt.Printf("  Version: %s (Deploy: %d%%)\n", ch.CrxVersion, ch.DeployPercentage)
 				}
 			}
 		}

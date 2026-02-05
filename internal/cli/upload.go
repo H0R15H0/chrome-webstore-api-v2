@@ -48,19 +48,11 @@ var uploadCmd = &cobra.Command{
 			}
 			fmt.Println(string(output))
 		} else {
-			fmt.Printf("Name:   %s\n", result.Name)
-			fmt.Printf("Status: %s\n", result.StatusCode)
-			if len(result.StatusDetail) > 0 {
-				fmt.Println("Details:")
-				for _, detail := range result.StatusDetail {
-					fmt.Printf("  - %s\n", detail)
-				}
-			}
-			if len(result.ItemError) > 0 {
-				fmt.Println("Errors:")
-				for _, itemErr := range result.ItemError {
-					fmt.Printf("  - %s: %s\n", itemErr.ErrorCode, itemErr.ErrorDetail)
-				}
+			fmt.Printf("Name:    %s\n", result.Name)
+			fmt.Printf("Item ID: %s\n", result.ItemID)
+			fmt.Printf("Status:  %s\n", result.UploadState)
+			if result.CrxVersion != "" {
+				fmt.Printf("Version: %s\n", result.CrxVersion)
 			}
 		}
 

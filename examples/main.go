@@ -45,8 +45,12 @@ func main() {
 		log.Fatalf("Failed to fetch status: %v", err)
 	}
 	fmt.Printf("Item: %s\n", status.Name)
-	fmt.Printf("State: %s\n", status.State)
-	fmt.Printf("Version: %s\n", status.Version)
+	if status.PublishedItemRevisionStatus != nil {
+		fmt.Printf("State: %s\n", status.PublishedItemRevisionStatus.State)
+		for _, ch := range status.PublishedItemRevisionStatus.DistributionChannels {
+			fmt.Printf("Version: %s (Deploy: %d%%)\n", ch.CrxVersion, ch.DeployPercentage)
+		}
+	}
 	fmt.Println()
 
 	// Example 2: Upload a new version (uncomment to use)
@@ -62,7 +66,8 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to upload: %v", err)
 		}
-		fmt.Printf("Upload status: %s\n", uploadResp.StatusCode)
+		fmt.Printf("Upload state: %s\n", uploadResp.UploadState)
+		fmt.Printf("Version: %s\n", uploadResp.CrxVersion)
 		fmt.Println()
 	*/
 
@@ -73,46 +78,47 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to publish: %v", err)
 		}
-		fmt.Printf("Publish status: %s\n", publishResp.StatusCode)
+		fmt.Printf("Publish state: %s\n", publishResp.State)
 		fmt.Println()
 	*/
 
-	// Example 4: Publish to trusted testers only (uncomment to use)
+	// Example 4: Publish with staged rollout (uncomment to use)
 	/*
-		fmt.Println("Publishing to trusted testers...")
+		fmt.Println("Publishing with staged rollout...")
 		publishResp, err := client.Publishers.Items.Publish(itemName).
 			Context(ctx).
-			PublishTarget(chromewebstore.PublishTargetTrustedTesters).
+			PublishType(chromewebstore.PublishTypeStaged).
+			DeployPercentage(10).
 			Do()
 		if err != nil {
 			log.Fatalf("Failed to publish: %v", err)
 		}
-		fmt.Printf("Publish status: %s\n", publishResp.StatusCode)
+		fmt.Printf("Publish state: %s\n", publishResp.State)
 		fmt.Println()
 	*/
 
 	// Example 5: Set deploy percentage (uncomment to use)
 	/*
 		fmt.Println("Setting deploy percentage to 50%...")
-		deployResp, err := client.Publishers.Items.SetPublishedDeployPercentage(itemName).
+		_, err = client.Publishers.Items.SetPublishedDeployPercentage(itemName).
 			Context(ctx).
 			DeployPercentage(50).
 			Do()
 		if err != nil {
 			log.Fatalf("Failed to set deploy percentage: %v", err)
 		}
-		fmt.Printf("Deploy percentage status: %s\n", deployResp.StatusCode)
+		fmt.Println("Deploy percentage updated successfully")
 		fmt.Println()
 	*/
 
 	// Example 6: Cancel submission (uncomment to use)
 	/*
 		fmt.Println("Canceling submission...")
-		cancelResp, err := client.Publishers.Items.CancelSubmission(itemName).Context(ctx).Do()
+		_, err = client.Publishers.Items.CancelSubmission(itemName).Context(ctx).Do()
 		if err != nil {
 			log.Fatalf("Failed to cancel submission: %v", err)
 		}
-		fmt.Printf("Cancel status: %s\n", cancelResp.StatusCode)
+		fmt.Println("Submission canceled successfully")
 		fmt.Println()
 	*/
 
