@@ -16,9 +16,10 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "cws",
-	Short: "Chrome Web Store API CLI",
-	Long:  `A command-line interface for the Chrome Web Store API v2.`,
+	Use:          "cws",
+	Short:        "Chrome Web Store API CLI",
+	Long:         `A command-line interface for the Chrome Web Store API v2.`,
+	SilenceUsage: true,
 }
 
 func init() {
