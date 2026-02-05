@@ -1,11 +1,11 @@
-# Chrome Web Store API v2 Go Client
+# Chrome Web Store API v2 CLI
 
-Chrome Web Store API v2 の Go クライアントライブラリです。
+Chrome Web Store API v2 を操作するための CLI ツールです。Go ライブラリとしても使用できます。
 
-## インストール
+## CLI インストール
 
 ```bash
-go get github.com/H0R15H0/chrome-webstore-api-v2
+go install github.com/H0R15H0/chrome-webstore-api-v2/cmd/cws@latest
 ```
 
 ## 認証設定
@@ -61,7 +61,68 @@ Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが�
 - **Item ID**: 拡張機能の ID（32文字の英小文字）
   - Developer Dashboard で拡張機能を選択した際の URL や、公開 URL に含まれる
 
-## 使用例
+## 環境変数の設定
+
+```bash
+export CHROME_WEBSTORE_CLIENT_ID="your-client-id"
+export CHROME_WEBSTORE_CLIENT_SECRET="your-client-secret"
+export CHROME_WEBSTORE_REFRESH_TOKEN="your-refresh-token"
+export CHROME_WEBSTORE_PUBLISHER_ID="your-publisher-id"
+export CHROME_WEBSTORE_ITEM_ID="your-item-id"
+```
+
+## CLI コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `cws fetch-status` | アイテムのステータスを取得 |
+| `cws upload <file.zip>` | 拡張機能をアップロード |
+| `cws publish` | アイテムを公開 |
+| `cws cancel-submission` | 保留中の申請をキャンセル |
+| `cws set-published-deploy-percentage <percentage>` | デプロイ率を設定 |
+
+## CLI 使用例
+
+```bash
+# ステータスを取得
+cws fetch-status
+
+# JSON 形式で出力
+cws fetch-status --json
+
+# 特定のプロジェクションを指定
+cws fetch-status --projection DRAFT
+
+# 拡張機能をアップロード
+cws upload extension.zip
+
+# 即時公開
+cws publish --type immediate
+
+# 段階的ロールアウト
+cws publish --type staged --deploy-percentage 10
+
+# 申請をキャンセル
+cws cancel-submission
+
+# デプロイ率を 50% に設定
+cws set-published-deploy-percentage 50
+
+# フラグで ID を指定
+cws fetch-status --publisher-id my-publisher --item-id my-item
+```
+
+---
+
+## Go ライブラリとして使用
+
+CLI だけでなく、Go ライブラリとしてプログラムから直接使用することもできます。
+
+### インストール
+
+```bash
+go get github.com/H0R15H0/chrome-webstore-api-v2
+```
 
 ### クライアントの初期化
 
@@ -164,6 +225,24 @@ resp, err := client.Publishers.Items.SetPublishedDeployPercentage(itemName).
 resp, err := client.Publishers.Items.CancelSubmission(itemName).Context(ctx).Do()
 ```
 
+### エラーハンドリング
+
+```go
+status, err := client.Publishers.Items.FetchStatus(itemName).Context(ctx).Do()
+if err != nil {
+    if apiErr, ok := err.(*chromewebstore.APIError); ok {
+        if apiErr.IsNotFound() {
+            // アイテムが見つからない
+        } else if apiErr.IsUnauthorized() {
+            // 認証エラー
+        } else if apiErr.IsRateLimited() {
+            // レート制限
+        }
+    }
+    log.Fatal(err)
+}
+```
+
 ## API リファレンス
 
 ### Client
@@ -216,85 +295,6 @@ resp, err := client.Publishers.Items.CancelSubmission(itemName).Context(ctx).Do(
 |---|------|
 | `PublishTypeImmediate` | 即時公開 |
 | `PublishTypeStaged` | 段階的ロールアウト |
-
-## エラーハンドリング
-
-```go
-status, err := client.Publishers.Items.FetchStatus(itemName).Context(ctx).Do()
-if err != nil {
-    if apiErr, ok := err.(*chromewebstore.APIError); ok {
-        if apiErr.IsNotFound() {
-            // アイテムが見つからない
-        } else if apiErr.IsUnauthorized() {
-            // 認証エラー
-        } else if apiErr.IsRateLimited() {
-            // レート制限
-        }
-    }
-    log.Fatal(err)
-}
-```
-
-## CLI ツール
-
-コマンドラインから Chrome Web Store API を操作できる `cws` ツールも提供しています。
-
-### CLI インストール
-
-```bash
-go install github.com/H0R15H0/chrome-webstore-api-v2/cmd/cws@latest
-```
-
-### 環境変数の設定
-
-```bash
-export CHROME_WEBSTORE_CLIENT_ID="your-client-id"
-export CHROME_WEBSTORE_CLIENT_SECRET="your-client-secret"
-export CHROME_WEBSTORE_REFRESH_TOKEN="your-refresh-token"
-export CHROME_WEBSTORE_PUBLISHER_ID="your-publisher-id"
-export CHROME_WEBSTORE_ITEM_ID="your-item-id"
-```
-
-### CLI コマンド
-
-| コマンド | 説明 |
-|---------|------|
-| `cws fetch-status` | アイテムのステータスを取得 |
-| `cws upload <file.zip>` | 拡張機能をアップロード |
-| `cws publish` | アイテムを公開 |
-| `cws cancel-submission` | 保留中の申請をキャンセル |
-| `cws set-published-deploy-percentage <percentage>` | デプロイ率を設定 |
-
-### CLI 使用例
-
-```bash
-# ステータスを取得
-cws fetch-status
-
-# JSON 形式で出力
-cws fetch-status --json
-
-# 特定のプロジェクションを指定
-cws fetch-status --projection DRAFT
-
-# 拡張機能をアップロード
-cws upload extension.zip
-
-# 即時公開
-cws publish --type immediate
-
-# 段階的ロールアウト
-cws publish --type staged --deploy-percentage 10
-
-# 申請をキャンセル
-cws cancel-submission
-
-# デプロイ率を 50% に設定
-cws set-published-deploy-percentage 50
-
-# フラグで ID を指定
-cws fetch-status --publisher-id my-publisher --item-id my-item
-```
 
 ## ライセンス
 
