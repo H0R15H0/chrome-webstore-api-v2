@@ -14,7 +14,7 @@ var (
 )
 
 func init() {
-	publishCmd.Flags().StringVar(&publishType, "type", "", "Publish type: 'immediate' or 'staged'")
+	publishCmd.Flags().StringVar(&publishType, "type", "default", "Publish type: 'default' or 'staged'")
 	publishCmd.Flags().IntVar(&deployPercentage, "deploy-percentage", 0, "Deploy percentage for staged rollout (0-100)")
 	rootCmd.AddCommand(publishCmd)
 }
@@ -36,8 +36,8 @@ var publishCmd = &cobra.Command{
 
 		call := client.Publishers.Items.Publish(itemName)
 
-		if publishType == "immediate" {
-			call.PublishType(chromewebstore.PublishTypeImmediate)
+		if publishType == "default" {
+			call.PublishType(chromewebstore.PublishTypeDefault)
 		} else if publishType == "staged" {
 			call.PublishType(chromewebstore.PublishTypeStaged)
 		}
