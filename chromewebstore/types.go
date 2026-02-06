@@ -23,10 +23,10 @@ type PublishType string
 const (
 	// PublishTypeUnspecified is the default publish type.
 	PublishTypeUnspecified PublishType = "PUBLISH_TYPE_UNSPECIFIED"
-	// PublishTypeImmediate publishes immediately.
-	PublishTypeImmediate PublishType = "IMMEDIATE"
-	// PublishTypeStaged stages the publication.
-	PublishTypeStaged PublishType = "STAGED"
+	// PublishTypeDefault publishes immediately after approval.
+	PublishTypeDefault PublishType = "DEFAULT_PUBLISH"
+	// PublishTypeStaged stages after approval, allowing manual publish later.
+	PublishTypeStaged PublishType = "STAGED_PUBLISH"
 )
 
 // ItemState represents the state of a Chrome Web Store item revision.

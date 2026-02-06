@@ -96,8 +96,11 @@ cws fetch-status --projection DRAFT
 # 拡張機能をアップロード
 cws upload extension.zip
 
-# 即時公開
-cws publish --type immediate
+# 公開（--type 省略時は default）
+cws publish
+
+# 明示的に即時公開を指定
+cws publish --type default
 
 # 段階的ロールアウト
 cws publish --type staged --deploy-percentage 10
@@ -195,7 +198,7 @@ fmt.Printf("Version: %s\n", resp.CrxVersion)
 // 即時公開
 resp, err := client.Publishers.Items.Publish(itemName).
     Context(ctx).
-    PublishType(chromewebstore.PublishTypeImmediate).
+    PublishType(chromewebstore.PublishTypeDefault).
     Do()
 if err != nil {
     log.Fatal(err)
@@ -293,8 +296,8 @@ if err != nil {
 
 | 値 | 説明 |
 |---|------|
-| `PublishTypeImmediate` | 即時公開 |
-| `PublishTypeStaged` | 段階的ロールアウト |
+| `PublishTypeDefault` | 承認後に即座に公開 |
+| `PublishTypeStaged` | 承認後にステージング（後で手動公開） |
 
 ## ライセンス
 

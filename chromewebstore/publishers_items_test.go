@@ -128,8 +128,8 @@ func TestPublishWithType(t *testing.T) {
 	server := newTestServer(func(w http.ResponseWriter, r *http.Request) {
 		var req PublishRequest
 		json.NewDecoder(r.Body).Decode(&req)
-		if req.PublishType != PublishTypeImmediate {
-			t.Errorf("expected publishType %s, got %s", PublishTypeImmediate, req.PublishType)
+		if req.PublishType != PublishTypeDefault {
+			t.Errorf("expected publishType %s, got %s", PublishTypeDefault, req.PublishType)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -141,7 +141,7 @@ func TestPublishWithType(t *testing.T) {
 	client.SetBaseURL(server.URL)
 
 	itemName := NewItemName("test-publisher", "test-item")
-	_, err := client.Publishers.Items.Publish(itemName).PublishType(PublishTypeImmediate).Do()
+	_, err := client.Publishers.Items.Publish(itemName).PublishType(PublishTypeDefault).Do()
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
