@@ -10,7 +10,16 @@ go install github.com/H0R15H0/chrome-webstore-api-v2/cmd/cws@latest
 
 ## 認証設定
 
-Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが必要です。
+Chrome Web Store API を使用するには、以下のいずれかの認証方法を設定します：
+
+- **アクセストークン** - CI/CD や自動化向け（推奨）
+- **OAuth 2.0** - 個人利用やテスト向け
+
+---
+
+## 方法 1: アクセストークン認証（推奨）
+
+gcloud CLI や他の方法で取得したアクセストークンを直接使用します。CI/CD パイプラインや自動化に最適です。
 
 ### 1. Google Cloud Console でプロジェクトを設定
 
@@ -18,7 +27,51 @@ Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが�
 2. 新しいプロジェクトを作成するか、既存のプロジェクトを選択
 3. 「APIs & Services」→「Library」から **Chrome Web Store API** を有効化
 
-### 2. OAuth 同意画面を設定
+### 2. gcloud CLI でアクセストークンを取得
+
+```bash
+# gcloud CLI をインストール（未インストールの場合）
+# https://cloud.google.com/sdk/docs/install
+
+# 認証（初回のみ）
+gcloud auth login
+
+# アクセストークンを取得
+gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/chromewebstore
+```
+
+### 3. 環境変数を設定
+
+```bash
+export CHROME_WEBSTORE_ACCESS_TOKEN="$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/chromewebstore)"
+export CHROME_WEBSTORE_PUBLISHER_ID="your-publisher-id"
+export CHROME_WEBSTORE_ITEM_ID="your-item-id"
+```
+
+**注意**: アクセストークンは 1 時間で期限切れになります。CI/CD では毎回新しいトークンを取得してください。
+
+### CI/CD での使用例（GitHub Actions）
+
+```yaml
+- name: Setup gcloud
+  uses: google-github-actions/setup-gcloud@v2
+  with:
+    credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+- name: Publish to Chrome Web Store
+  run: |
+    export CHROME_WEBSTORE_ACCESS_TOKEN="$(gcloud auth print-access-token --scopes=https://www.googleapis.com/auth/chromewebstore)"
+    cws upload extension.zip
+    cws publish
+```
+
+---
+
+## 方法 2: OAuth 2.0 認証
+
+OAuth 2.0 は個人利用やテストに適しています。リフレッシュトークンを使用するため、アクセストークンの期限切れを気にする必要がありません。
+
+### 1. OAuth 同意画面を設定
 
 1. 「APIs & Services」→「OAuth consent screen」に移動
 2. User Type: **External** を選択して「Create」
@@ -26,7 +79,7 @@ Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが�
 4. スコープは設定せずに進む
 5. テストユーザーに Chrome Web Store のアイテムを所有する Google アカウントを追加
 
-### 3. OAuth 2.0 クレデンシャルを作成
+### 2. OAuth 2.0 クレデンシャルを作成
 
 1. 「APIs & Services」→「Credentials」に移動
 2. 「Create Credentials」→「OAuth client ID」を選択
@@ -38,13 +91,13 @@ Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが�
 5. 「Create」をクリック
 6. **Client ID** と **Client Secret** をメモ
 
-### 4. リフレッシュトークンを取得
+### 3. リフレッシュトークンを取得
 
 [OAuth 2.0 Playground](https://developers.google.com/oauthplayground/) を使用してリフレッシュトークンを取得します。
 
 1. 右上の **歯車アイコン** をクリック
 2. 「**Use your own OAuth credentials**」にチェック
-3. 手順 3 で取得した **Client ID** と **Client Secret** を入力
+3. 手順 2 で取得した **Client ID** と **Client Secret** を入力
 4. 左側「Step 1」のスコープ入力欄に以下を入力:
    ```
    https://www.googleapis.com/auth/chromewebstore
@@ -54,14 +107,7 @@ Chrome Web Store API を使用するには、OAuth 2.0 クレデンシャルが�
 7. 「Step 2」で「**Exchange authorization code for tokens**」をクリック
 8. 表示された **Refresh token** をコピー
 
-### 5. Publisher ID と Item ID を確認
-
-- **Publisher ID**: [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) の URL に含まれる ID
-  - 例: `https://chrome.google.com/webstore/devconsole/12345678-abcd-...` の `12345678-abcd-...` 部分
-- **Item ID**: 拡張機能の ID（32文字の英小文字）
-  - Developer Dashboard で拡張機能を選択した際の URL や、公開 URL に含まれる
-
-## 環境変数の設定
+### 4. 環境変数を設定
 
 ```bash
 export CHROME_WEBSTORE_CLIENT_ID="your-client-id"
@@ -70,6 +116,15 @@ export CHROME_WEBSTORE_REFRESH_TOKEN="your-refresh-token"
 export CHROME_WEBSTORE_PUBLISHER_ID="your-publisher-id"
 export CHROME_WEBSTORE_ITEM_ID="your-item-id"
 ```
+
+---
+
+## Publisher ID と Item ID の確認方法
+
+- **Publisher ID**: [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole) の URL に含まれる ID
+  - 例: `https://chrome.google.com/webstore/devconsole/12345678-abcd-...` の `12345678-abcd-...` 部分
+- **Item ID**: 拡張機能の ID（32文字の英小文字）
+  - Developer Dashboard で拡張機能を選択した際の URL や、公開 URL に含まれる
 
 ## CLI コマンド
 
@@ -129,6 +184,29 @@ go get github.com/H0R15H0/chrome-webstore-api-v2
 
 ### クライアントの初期化
 
+#### アクセストークン認証
+
+```go
+package main
+
+import (
+    "github.com/H0R15H0/chrome-webstore-api-v2/chromewebstore"
+)
+
+func main() {
+    // アクセストークンからクライアントを作成
+    // トークンは gcloud auth print-access-token などで取得
+    client := chromewebstore.NewClientFromAccessToken("your-access-token")
+
+    // アイテム名を作成
+    itemName := chromewebstore.NewItemName("publisher-id", "item-id")
+
+    // ...
+}
+```
+
+#### OAuth 2.0 認証
+
 ```go
 package main
 
@@ -140,7 +218,7 @@ import (
 func main() {
     ctx := context.Background()
 
-    // 認証情報からクライアントを作成
+    // OAuth 2.0 認証情報からクライアントを作成
     client := chromewebstore.NewClientFromCredentials(ctx, chromewebstore.AuthConfig{
         ClientID:     "your-client-id",
         ClientSecret: "your-client-secret",
@@ -253,7 +331,8 @@ if err != nil {
 | メソッド | 説明 |
 |---------|------|
 | `NewClient(httpClient)` | HTTP クライアントから新しいクライアントを作成 |
-| `NewClientFromCredentials(ctx, config)` | 認証情報から新しいクライアントを作成 |
+| `NewClientFromAccessToken(accessToken)` | アクセストークンからクライアントを作成 |
+| `NewClientFromCredentials(ctx, config)` | OAuth 2.0 認証情報から新しいクライアントを作成 |
 
 ### ItemsService
 

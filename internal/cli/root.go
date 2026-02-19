@@ -48,12 +48,21 @@ func getItemID() string {
 }
 
 func createClient() (*chromewebstore.Client, error) {
+	ctx := context.Background()
+
+	// 1. Check for access token (can be obtained via gcloud auth print-access-token)
+	accessToken := os.Getenv("CHROME_WEBSTORE_ACCESS_TOKEN")
+	if accessToken != "" {
+		return chromewebstore.NewClientFromAccessToken(accessToken), nil
+	}
+
+	// 2. Fall back to OAuth credentials
 	clientID := os.Getenv("CHROME_WEBSTORE_CLIENT_ID")
 	clientSecret := os.Getenv("CHROME_WEBSTORE_CLIENT_SECRET")
 	refreshToken := os.Getenv("CHROME_WEBSTORE_REFRESH_TOKEN")
 
 	if clientID == "" || clientSecret == "" || refreshToken == "" {
-		return nil, fmt.Errorf("missing required environment variables: CHROME_WEBSTORE_CLIENT_ID, CHROME_WEBSTORE_CLIENT_SECRET, CHROME_WEBSTORE_REFRESH_TOKEN")
+		return nil, fmt.Errorf("missing required environment variables. Set one of:\n  - CHROME_WEBSTORE_ACCESS_TOKEN (access token, e.g., from gcloud auth print-access-token)\n  - CHROME_WEBSTORE_CLIENT_ID, CHROME_WEBSTORE_CLIENT_SECRET, CHROME_WEBSTORE_REFRESH_TOKEN (OAuth 2.0)")
 	}
 
 	config := chromewebstore.AuthConfig{
@@ -62,7 +71,7 @@ func createClient() (*chromewebstore.Client, error) {
 		RefreshToken: refreshToken,
 	}
 
-	return chromewebstore.NewClientFromCredentials(context.Background(), config), nil
+	return chromewebstore.NewClientFromCredentials(ctx, config), nil
 }
 
 func getItemName() (chromewebstore.ItemName, error) {
